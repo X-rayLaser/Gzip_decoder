@@ -11,23 +11,43 @@
 #include <cstdlib>
 #include <vector>
 #include <map>
+#include "Bit_stream.h"
 #include "Huf_tree.h"
 
-using namespace std;
 
 struct extra_bits{
 	int bits;
 	int min_val;
 };
 
+const int OUTBUF_SZ = 100000;
+class obuffer {
+	std::ofstream out;
+	std::vector<unsigned char> buf;
+public:
+	obuffer(const char* fname) :
+			out(fname) { buf.reserve(OUTBUF_SZ); }
+	void put_byte(unsigned char byte);
+	void write(const std::vector<unsigned char>& data);
+	void close();
+};
 
-
+const int WND_SZ = 32768;
+class wnd32k{
+	std::vector<unsigned char> wnd;
+public:
+	wnd32k(){}
+	void add_byte(unsigned char byte);
+	void append(const std::vector<unsigned char>& v );
+	std::vector<unsigned char> retrieve(int len, int dist);
+};
 
 class Deflate_stream{
 	const std::map<int, struct extra_bits> lengths ;
 	const std::map<int, struct extra_bits> distances ;
 	Bit_stream btstr;
-	vector<unsigned char> out;
+	obuffer out_buffer;
+	wnd32k w;
 	bool last_block;
 
 	int get_value(const tree::Huf_tree& htr);
@@ -43,7 +63,7 @@ public:
 	Deflate_stream(const char* fname, int offset);
 	void decode_block();
 	bool eos();
-	vector<char> stream();
+	std::vector<char> stream();
 };
 
 

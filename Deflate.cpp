@@ -1,6 +1,87 @@
 #include "Deflate.h"
 #include "Huf_tree.h"
-Dft_decoder::Dft_decoder(const char *in)
+
+void obuffer::put_byte(unsigned char byte)
+{
+	if (!out.is_open())
+		throw ;
+	if (!out.good())
+		throw ;
+
+	//// when buffer reach definite size write it into ofstream
+	if ( buf.size() == OUTBUF_SZ){
+		out.write((char *) &buf[0], sizeof(char) * buf.size());
+		buf.clear();
+	}
+
+	////add another byte to the buffer
+	buf.push_back(byte);
+}
+
+void obuffer::write(const std::vector<unsigned char>& data )
+{
+	//// when buffer reach definite size write it into ofstream
+	if ( buf.size() == OUTBUF_SZ){
+		out.write((char *) &buf[0], sizeof(char) * buf.size());
+		buf.clear();
+	}
+
+	/* if data contains more bytes than the amount of available
+	 * bytes in a buffer,
+	 */
+	if (data.size() > OUTBUF_SZ - buf.size()  ){
+		std::vector<unsigned char>::iterator p = data.begin() +  OUTBUF_SZ - buf.size() + 1;
+		buf.insert(buf.end(), data.begin(), data.begin() + p);
+		out.write((char *) &buf[0], sizeof(char) * buf.size());
+		buf.clear();
+		buf.insert(buf.end(),  data.begin() + p, data.end());
+	}
+	else
+		buf.insert(buf.end(), data.begin(), data.end());
+
+}
+
+void obuffer::close()
+{
+	if (!out.is_open())
+		throw ;
+
+	out.write((char *) &buf[0], sizeof(char) * buf.size());
+	buf.clear();
+	out.close();
+}
+
+
+
+void wnd32k::add_byte(unsigned char byte)
+{
+	if (wnd.size() < WND_SZ)
+		wnd.push_back(byte);
+	else
+	{
+		wnd.push_back(byte);
+		wnd.erase(wnd.begin());
+	}
+}
+
+void wnd32k::append(const std::vector<unsigned char>& v )
+{
+	wnd.insert(wnd.end(), v.begin(), v.end()) ;
+
+	if (wnd.size() > WND_SZ){
+		int nelem = wnd.size() - WND_SZ +1;
+		wnd.erase(wnd.begin(), wnd.begin() + nelem);
+	}
+
+}
+
+std::vector<unsigned char> wnd32k::retrieve(int len, int dist)
+{
+
+}
+
+
+Deflate_stream::Deflate_stream(const char* fname, int offset)
 {
 	const int LEN_CODE_COUNT = 29;
 	const int DIST_CODE_COUNT = 30;
@@ -32,7 +113,7 @@ Dft_decoder::Dft_decoder(const char *in)
 
 }
 
-tree::Huf_tree Dft_decoder::init_fixtree()
+tree::Huf_tree Deflate_stream::init_fixtree()
 {
 	const int CODES_COUNT = 287;
 	std::vector<tree::pair> code_lenths(CODES_COUNT);
@@ -54,7 +135,7 @@ tree::Huf_tree Dft_decoder::init_fixtree()
 
 }
 
-void Dft_decoder::decode_block()
+void Deflate_stream::decode_block()
 {
 	last_block = btstr.get_bit();
 
@@ -71,7 +152,7 @@ void Dft_decoder::decode_block()
 
 }
 
-void Dft_decoder::uncompressed()
+void Deflate_stream::uncompressed()
 {
 	btstr.skip_bits();
 
@@ -87,7 +168,7 @@ void Dft_decoder::uncompressed()
 
 }
 
-void Dft_decoder::fixed_huf()
+void Deflate_stream::fixed_huf()
 {
 
 	static tree::Huf_tree fix_tr = init_fixtree();
@@ -111,7 +192,7 @@ void Dft_decoder::fixed_huf()
 }
 
 
-void Dft_decoder::dynamic_huf()
+void Deflate_stream::dynamic_huf()
 {
 
 	int nlitlen	  = btstr.read_reverse(5) + 257;
@@ -141,7 +222,7 @@ void Dft_decoder::dynamic_huf()
 		}
 }
 
-tree::Huf_tree Dft_decoder::get_lenghts_tree(int count)
+tree::Huf_tree Deflate_stream::get_lenghts_tree(int count)
 {
 	const int MAX_CODE_COUNT = 19;
 
@@ -159,7 +240,7 @@ tree::Huf_tree Dft_decoder::get_lenghts_tree(int count)
 	return tree::Huf_tree(code_lengths);
 }
 
-tree::Huf_tree Dft_decoder::decode_rle(const tree::Huf_tree& htr, int count)
+tree::Huf_tree Deflate_stream::decode_rle(const tree::Huf_tree& htr, int count)
 {
 	std::vector<tree::pair> alphabt;
 	alphabt.reserve(count);
@@ -199,7 +280,7 @@ tree::Huf_tree Dft_decoder::decode_rle(const tree::Huf_tree& htr, int count)
 }
 
 
-void Dft_decoder::copy_bytes(int len, int dist)
+void Deflate_stream::copy_bytes(int len, int dist)
 {
 	vector<unsigned char>::iterator ith = out.begin() + out.size() - dist;
 	if (len > dist){
@@ -228,7 +309,7 @@ void Dft_decoder::copy_bytes(int len, int dist)
 
 }
 
-int Dft_decoder::get_value(const tree::Huf_tree& htr)
+int Deflate_stream::get_value(const tree::Huf_tree& htr)
 {
 	int x;
 	do{

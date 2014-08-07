@@ -11,7 +11,7 @@
 #include <iostream>
 #include <fstream>
 
-const int BUF_SZ = 100000;
+const int INBUF_SZ = 100000;
 
 class buf_excpt{
 };
@@ -24,39 +24,38 @@ class bad_refill: public buf_excpt{
 
 class ibuffer {
 	std::ifstream in;
-	unsigned char* buf;
-	int cur_byte;
-	const int buf_size;
+	std::vector<unsigned char> buf;
+	int byte_pos;
 	int data_size;
-
 	void refill();
 public:
 	ibuffer(const char* fname, int offset );
 	unsigned char get_byte();
+
 	bool eof()
 	{
-		return data_size != buf_size && cur_byte == data_size ;
+		return in.eof() && byte_pos == data_size ;
 	}
 
-	~ibuffer()
-	{
-		in.close();
-		delete [] buf;
-	}
+	~ibuffer(){ in.close(); }
 };
 
 class Bit_stream{
-	ibuffer buffer ;
+	ibuffer in_buffer ;
 	unsigned char cur_byte;
-	unsigned char bit_pos;
+	unsigned char bit_pos;   //current bit in a byte
 public:
 	Bit_stream(const char* fname, int offset);
 	bool get_bit();
 	int read_reverse(int bit_count);
 	void skip_bits();
+	unsigned short get_wordLE();  //get little endian word
 	unsigned char get_byte();
-	unsigned short get_wordLE();
-	bool end_of_stream();
+	bool end_of_stream() 		 { return in_buffer.eof(); }
+	bool end_of_bits()
+	{
+		return end_of_stream && (bit_pos == 8);
+	}
 };
 
 
