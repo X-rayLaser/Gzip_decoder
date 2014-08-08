@@ -24,7 +24,7 @@ Huf_tree::Huf_tree(const std::vector<pair> &alphabt) :
 		p=alphabet.erase(p);
 
 	if (alphabet.size()==0)
-		throw empty_tree;
+		throw empty_tree();
 
 	build_tree();
 }
@@ -44,7 +44,7 @@ void Huf_tree::build_tree()
 	right_edge(root);
 
 	if (cur_symbol != alphabet.end())
-		throw bad_tree;
+		throw bad_tree();
 
 	cur_node=root;
 }
@@ -115,7 +115,7 @@ void Huf_tree::right_edge(struct node* parent )
 int  Huf_tree::down_left() const
 {
 	if (cur_node == NULL)
-		throw bad_code;
+		throw bad_code();
 
 	cur_node = cur_node->left;
 
@@ -134,7 +134,7 @@ int  Huf_tree::down_left() const
 int  Huf_tree::down_right() const
 {
 	if (cur_node == NULL)
-		throw bad_code;
+		throw bad_code();
 
 	cur_node = cur_node->right;
 

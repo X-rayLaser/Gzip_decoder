@@ -3,12 +3,12 @@
 ibuffer::ibuffer(const char* fname, int offset): in(fname), buf(INBUF_SZ)
 {
 	if (!in.is_open())
-		throw bad_init;
+		throw bad_init();
 
 	in.seekg(offset);
 
 	if (!in.good())
-		throw bad_init;
+		throw bad_init();
 
 	refill();
 }
@@ -16,13 +16,13 @@ ibuffer::ibuffer(const char* fname, int offset): in(fname), buf(INBUF_SZ)
 void ibuffer::refill()
 {
 	if (!in.good() )
-		throw bad_refill;
+		throw bad_refill();
 
 	in.read((char*) &buf[0], sizeof(char)*buf.size());
 	data_size = in.gcount();
 
 	if (!in.good() && !in.eof())
-		throw bad_refill;
+		throw bad_refill();
 
 	byte_pos=0;
 }

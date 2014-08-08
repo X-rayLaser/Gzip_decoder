@@ -15,12 +15,14 @@
 #include "Huf_tree.h"
 
 
+const unsigned int OUTBUF_SZ = 100000;
+const unsigned WND_SZ = 32768;
+
 struct extra_bits{
 	int bits;
 	int min_val;
 };
 
-const int OUTBUF_SZ = 100000;
 class obuffer {
 	std::ofstream out;
 	std::vector<unsigned char> buf;
@@ -32,19 +34,20 @@ public:
 	void close();
 };
 
-const int WND_SZ = 32768;
+
 class wnd32k{
 	std::vector<unsigned char> wnd;
 public:
-	wnd32k(){}
-	void add_byte(unsigned char byte);
+	wnd32k(){ wnd.reserve(2*32768);}
+	void put_byte(unsigned char byte);
 	void append(const std::vector<unsigned char>& v );
 	std::vector<unsigned char> retrieve(int len, int dist);
 };
 
+
 class Deflate_stream{
-	const std::map<int, struct extra_bits> lengths ;
-	const std::map<int, struct extra_bits> distances ;
+	std::map<int, struct extra_bits> lengths ;
+	std::map<int, struct extra_bits> distances ;
 	Bit_stream btstr;
 	obuffer out_buffer;
 	wnd32k w;
@@ -60,7 +63,7 @@ class Deflate_stream{
 	void fixed_huf();
 	void dynamic_huf();
 public:
-	Deflate_stream(const char* fname, int offset);
+	Deflate_stream(const char* fin, const char* fout, int offset);
 	void decode_block();
 	bool eos();
 	std::vector<char> stream();

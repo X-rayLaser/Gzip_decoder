@@ -1,6 +1,8 @@
 #include "Deflate.h"
 #include "Huf_tree.h"
 
+const int END_OF_BLOCK = 256 ;
+
 void obuffer::put_byte(unsigned char byte)
 {
 	if (!out.is_open())
@@ -30,11 +32,11 @@ void obuffer::write(const std::vector<unsigned char>& data )
 	 * bytes in a buffer,
 	 */
 	if (data.size() > OUTBUF_SZ - buf.size()  ){
-		std::vector<unsigned char>::iterator p = data.begin() +  OUTBUF_SZ - buf.size() + 1;
-		buf.insert(buf.end(), data.begin(), data.begin() + p);
+		std::vector<unsigned char>::const_iterator p = data.begin() +  (OUTBUF_SZ - buf.size() + 1);
+		buf.insert(buf.end(), data.begin(), p);
 		out.write((char *) &buf[0], sizeof(char) * buf.size());
 		buf.clear();
-		buf.insert(buf.end(),  data.begin() + p, data.end());
+		buf.insert(buf.end(),  p, data.end());
 	}
 	else
 		buf.insert(buf.end(), data.begin(), data.end());
@@ -53,7 +55,7 @@ void obuffer::close()
 
 
 
-void wnd32k::add_byte(unsigned char byte)
+void wnd32k::put_byte(unsigned char byte)
 {
 	if (wnd.size() < WND_SZ)
 		wnd.push_back(byte);
@@ -77,12 +79,33 @@ void wnd32k::append(const std::vector<unsigned char>& v )
 
 std::vector<unsigned char> wnd32k::retrieve(int len, int dist)
 {
+	//defining index of an element to start copy bytes from
+	std::vector<unsigned char>::iterator ith = wnd.begin() + wnd.size() - dist;
 
+	std::vector<unsigned char> retrv_bytes;
+	retrv_bytes.reserve(len);
+	if (len > dist)
+	{
+		retrv_bytes.insert(retrv_bytes.end(), ith, wnd.end());
+
+		while ( retrv_bytes.size() < (unsigned int) len ){
+			ith = wnd.begin() + wnd.size() - dist;
+			for ( ; ith!=wnd.end() && retrv_bytes.size() < (unsigned int) len ; ith++)
+				retrv_bytes.push_back(*ith);
+		}
+	}
+	else
+		retrv_bytes.insert(retrv_bytes.end(), ith, wnd.end());
+
+	return retrv_bytes;
 }
 
 
-Deflate_stream::Deflate_stream(const char* fname, int offset)
+Deflate_stream::Deflate_stream(const char* fin, const char* fout, int offset) :
+		btstr(fin, offset), out_buffer(fout)
 {
+	last_block = false;
+
 	const int LEN_CODE_COUNT = 29;
 	const int DIST_CODE_COUNT = 30;
 	struct extra_bits len_bts[LEN_CODE_COUNT]={
@@ -95,7 +118,7 @@ Deflate_stream::Deflate_stream(const char* fname, int offset)
 			{0, 258}
 	};
 
-	struct extra_bitx dist_bts[DIST_CODE_COUNT]={
+	struct extra_bits dist_bts[DIST_CODE_COUNT]={
 			{0, 1}, {0, 2},{0, 3},{0, 4},	{1, 5}, {1, 7},	{2, 9}, {2, 13},
 			{3, 17}, {3, 25},		{4, 33},	{4, 49},	{5, 65}, {5, 97},
 			{6, 129}, {6, 193},		{7, 257},	{7, 385},	{8, 513},{8, 769},
@@ -103,6 +126,7 @@ Deflate_stream::Deflate_stream(const char* fname, int offset)
 			{11, 4097}, {11, 6145},	{12, 8193}, {12, 12289},
 			{13, 16385}, {13, 24577}
 	};
+
 
 	int i=0;
 	for (int code=257; code<=285; code++, i++)
@@ -159,12 +183,15 @@ void Deflate_stream::uncompressed()
 	unsigned short len = btstr.get_wordLE();
 	unsigned short nlen = btstr.get_wordLE();
 
-	if ( len != ~nlen )
+	if ( len != (unsigned short ) ~nlen )
 		throw ;
 
 	//copy bytes from btstr to out
-	for (int i=0 ; i < len; i++)
-		out.push_back( btstr.get_byte() );
+	for (int i=0 ; i < len; i++){
+		unsigned char byte = btstr.get_byte();
+		w.put_byte( byte );
+		out_buffer.put_byte( byte );
+	}
 
 }
 
@@ -174,11 +201,13 @@ void Deflate_stream::fixed_huf()
 	static tree::Huf_tree fix_tr = init_fixtree();
 
 	int litlen_code;
-	while ( ( litlen_code=get_value(fix_tr) ) != 256 )
+	while ( ( litlen_code=get_value(fix_tr) ) != END_OF_BLOCK )
 		if (litlen_code<0 || litlen_code>285)
 			throw ;
-		else if (litlen_code<256)
-			out.push_back(litlen_code);
+		else if (litlen_code<256){
+			w.put_byte(litlen_code);
+			out_buffer.put_byte(litlen_code);
+		}
 		else if (litlen_code>256){
 			int len = lengths[litlen_code].min_val + btstr.read_reverse(lengths[litlen_code].bits);
 
@@ -206,11 +235,13 @@ void Deflate_stream::dynamic_huf()
 	tree::Huf_tree dist_htree = decode_rle(length_htree, ndist);
 
 	int litlen_code;
-	while ( ( litlen_code=get_value(litlen_htree) ) != 256 )
+	while ( ( litlen_code=get_value(litlen_htree) ) != END_OF_BLOCK )
 		if (litlen_code<0 || litlen_code>285)
 			throw ;
-		else if (litlen_code<256)
-			out.push_back(litlen_code);
+		else if (litlen_code<256){
+			w.put_byte(litlen_code);
+			out_buffer.put_byte(litlen_code);
+		}
 		else if (litlen_code>256){
 			int len = lengths[litlen_code].min_val + btstr.read_reverse(lengths[litlen_code].bits);
 
@@ -282,31 +313,13 @@ tree::Huf_tree Deflate_stream::decode_rle(const tree::Huf_tree& htr, int count)
 
 void Deflate_stream::copy_bytes(int len, int dist)
 {
-	vector<unsigned char>::iterator ith = out.begin() + out.size() - dist;
-	if (len > dist){
-		vector<unsigned char> buf;
-		buf.reserve(dist);
-		buf.insert(buf.end(), ith, out.end());
-		out.insert(out.end(), buf.begin(), buf.end());
+	std::vector<unsigned char> v;
 
-		int i=0;
-		while (i<len){
-			ith = buf.begin();
-			while (ith!=buf.end() && i<len){
-				out.push_back(*ith);
-				ith++;
-				i++;
-			}
-		}
-	}
-	else
-	{
-		vector<unsigned char> buf;
-		buf.reserve(len);
-		buf.insert(buf.end(), ith, ith+len);
-		out.insert(out.end(), buf.begin(), buf.end());
-	}
+	v = w.retrieve(len, dist);
 
+	w.append(v);
+
+	out_buffer.write(v);
 }
 
 int Deflate_stream::get_value(const tree::Huf_tree& htr)
@@ -318,7 +331,7 @@ int Deflate_stream::get_value(const tree::Huf_tree& htr)
 		else
 			x=htr.down_right();
 	}
-	while ( x==tree::Huf_tree::NOVALUE );
+	while ( x==tree::NOVALUE );
 
 	return x;
 }

@@ -15,6 +15,8 @@
 
 namespace tree {
 
+const int NOVALUE = -8000;
+
 class empty_tree{
 };
 
@@ -36,11 +38,13 @@ struct node {
 struct pair {
 	int value;
 	int length;
+	pair(){ value=0; length=0; }
+	pair(int val, int len){ value = val; length = len; }
 } ;
 
 
 class Huf_tree{
-	struct node* cur_node;
+	mutable struct node* cur_node;
 	struct node* root;						//root of the huffman tree
 	std::vector<pair> alphabet;				//pairs of code lengths and values
 	std::vector<pair>::iterator cur_symbol;	//points to the current symbol in a vector
@@ -62,8 +66,6 @@ public:
 	Huf_tree(const Huf_tree& htr);
 	int down_left()  const;			    		//walk down the left edge
 	int down_right() const;			    		//walk down the right edge
-
-	const int NOVALUE=-8000;
 	~Huf_tree();
 };
 

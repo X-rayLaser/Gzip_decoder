@@ -10,6 +10,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 const int INBUF_SZ = 100000;
 
@@ -54,7 +55,7 @@ public:
 	bool end_of_stream() 		 { return in_buffer.eof(); }
 	bool end_of_bits()
 	{
-		return end_of_stream && (bit_pos == 8);
+		return end_of_stream() && (bit_pos == 8);
 	}
 };
 
