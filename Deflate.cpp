@@ -95,7 +95,7 @@ std::vector<unsigned char> wnd32k::retrieve(int len, int dist)
 		}
 	}
 	else
-		retrv_bytes.insert(retrv_bytes.end(), ith, wnd.end());
+		retrv_bytes.insert(retrv_bytes.end(), ith, ith + len);
 
 	return retrv_bytes;
 }
@@ -139,21 +139,21 @@ Deflate_stream::Deflate_stream(const char* fin, const char* fout, int offset) :
 
 tree::Huf_tree Deflate_stream::init_fixtree()
 {
-	const int CODES_COUNT = 287;
+	const int CODES_COUNT = 288;
 	std::vector<tree::pair> code_lenths(CODES_COUNT);
 
 	int litval;
 	for (litval=0; litval<=143; litval++)
-		code_lenths.push_back( {litval, 8});
+		code_lenths.push_back( tree::pair(litval, 8));
 
 	for (litval=144; litval<=255; litval++)
-		code_lenths.push_back({litval,9});
+		code_lenths.push_back(tree::pair(litval,9));
 
 	for (litval=256; litval<=279; litval++)
-		code_lenths.push_back({litval,7});
+		code_lenths.push_back(tree::pair(litval,7));
 
 	for (litval=280; litval<=287; litval++)
-		code_lenths.push_back({litval,8});
+		code_lenths.push_back(tree::pair(litval,8));
 
 	return tree::Huf_tree(code_lenths);
 
@@ -258,9 +258,11 @@ tree::Huf_tree Deflate_stream::get_lenghts_tree(int count)
 	const int MAX_CODE_COUNT = 19;
 
 	static struct tree::pair x[MAX_CODE_COUNT] = {
-			{16, 0}, {17, 0}, {18, 0}, {0, 0}, {8,0}, {7, 0},
-			{9, 0}, {6, 0}, {10, 0}, {5, 0}, {11,0}, {4, 0}, {12, 0},
-			{3, 0}, {13, 0}, {2, 0}, {14, 0}, {1, 0}, {15, 0}
+			tree::pair(16, 0), tree::pair(17, 0), tree::pair(18, 0), tree::pair(0, 0),
+			tree::pair(8,0),   tree::pair(7, 0),  tree::pair(9, 0),  tree::pair(6, 0),
+			tree::pair(10, 0), tree::pair(5, 0),  tree::pair(11,0),  tree::pair(4, 0),
+			tree::pair(12, 0), tree::pair(3, 0),  tree::pair(13, 0), tree::pair(2, 0),
+			tree::pair(14, 0), tree::pair(1, 0),  tree::pair(15, 0)
 	};
 	std::vector<tree::pair> code_lengths( &x[0], &x[0]+count );
 
@@ -283,7 +285,7 @@ tree::Huf_tree Deflate_stream::decode_rle(const tree::Huf_tree& htr, int count)
 		if (length < 0)
 			throw ;
 		else if (length < 16){
-			alphabt.push_back( {symbol_ith,length} );
+			alphabt.push_back( tree::pair(symbol_ith,length) );
 			symbol_ith++;
 		}
 		else if (length == 16){
@@ -291,17 +293,17 @@ tree::Huf_tree Deflate_stream::decode_rle(const tree::Huf_tree& htr, int count)
 
 			struct tree::pair prev = alphabt[alphabt.size()-1];
 			for (int n=0; n < repeat_counter && symbol_ith < count; n++,symbol_ith++)
-				alphabt.push_back( {symbol_ith, prev.length} );
+				alphabt.push_back( tree::pair(symbol_ith, prev.length) );
 		}
 		else if (length == 17){
 			int repeat_counter = btstr.read_reverse(3) + 3;
 			for (int n=0; n < repeat_counter && symbol_ith < count; n++,symbol_ith++)
-				alphabt.push_back( {symbol_ith, 0 } );
+				alphabt.push_back( tree::pair(symbol_ith, 0) );
 		}
 		else if (length == 18){
 			int repeat_counter = btstr.read_reverse(7) + 11;
 			for (int n=0; n < repeat_counter && symbol_ith < count; n++,symbol_ith++)
-				alphabt.push_back( {symbol_ith, 0 } );
+				alphabt.push_back( tree::pair(symbol_ith, 0) );
 		}
 		else
 			throw ;

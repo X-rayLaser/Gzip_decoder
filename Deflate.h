@@ -27,8 +27,11 @@ class obuffer {
 	std::ofstream out;
 	std::vector<unsigned char> buf;
 public:
-	obuffer(const char* fname) :
-			out(fname) { buf.reserve(OUTBUF_SZ); }
+	obuffer(const char* fname) : out()
+	{
+		out.open(fname,std::ios::out | std::ios::binary);
+		buf.reserve(OUTBUF_SZ);
+	}
 	void put_byte(unsigned char byte);
 	void write(const std::vector<unsigned char>& data);
 	void close();
@@ -38,7 +41,7 @@ public:
 class wnd32k{
 	std::vector<unsigned char> wnd;
 public:
-	wnd32k(){ wnd.reserve(2*32768);}
+	wnd32k(){ wnd.reserve(2*WND_SZ);}
 	void put_byte(unsigned char byte);
 	void append(const std::vector<unsigned char>& v );
 	std::vector<unsigned char> retrieve(int len, int dist);
@@ -65,8 +68,8 @@ class Deflate_stream{
 public:
 	Deflate_stream(const char* fin, const char* fout, int offset);
 	void decode_block();
-	bool eos();
-	std::vector<char> stream();
+	bool last_blck() { return last_block; }
+	void close() { btstr.close(); out_buffer.close(); }
 };
 
 

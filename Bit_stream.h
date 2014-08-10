@@ -28,6 +28,8 @@ class ibuffer {
 	std::vector<unsigned char> buf;
 	int byte_pos;
 	int data_size;
+	bool is_end;
+
 	void refill();
 public:
 	ibuffer(const char* fname, int offset );
@@ -35,10 +37,10 @@ public:
 
 	bool eof()
 	{
-		return in.eof() && byte_pos == data_size ;
+		return is_end ;
 	}
 
-	~ibuffer(){ in.close(); }
+	void close(){ in.close(); }
 };
 
 class Bit_stream{
@@ -57,6 +59,7 @@ public:
 	{
 		return end_of_stream() && (bit_pos == 8);
 	}
+	void close() { in_buffer.close(); }
 };
 
 

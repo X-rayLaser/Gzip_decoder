@@ -1,7 +1,8 @@
 #include "Bit_stream.h"
 
-ibuffer::ibuffer(const char* fname, int offset): in(fname), buf(INBUF_SZ)
+ibuffer::ibuffer(const char* fname, int offset): in(), buf(INBUF_SZ)
 {
+	in.open(fname, std::ios::in | std::ios::binary);
 	if (!in.is_open())
 		throw bad_init();
 
@@ -10,16 +11,24 @@ ibuffer::ibuffer(const char* fname, int offset): in(fname), buf(INBUF_SZ)
 	if (!in.good())
 		throw bad_init();
 
+	is_end = false;
 	refill();
 }
 
 void ibuffer::refill()
 {
+	/* It's the way to determine that either
+	 * the end of file was achieved or reading error has occurred
+	 * However it doesn't work for all cases, especially when
+	 */
 	if (!in.good() )
 		throw bad_refill();
 
 	in.read((char*) &buf[0], sizeof(char)*buf.size());
+
 	data_size = in.gcount();
+	if (data_size == 0)
+		is_end = true;
 
 	if (!in.good() && !in.eof())
 		throw bad_refill();

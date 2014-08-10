@@ -13,14 +13,14 @@ Huf_tree::Huf_tree(const Huf_tree& htr)
 /* alphabt must have at least one symbol(value) of non-zero length
  */
 Huf_tree::Huf_tree(const std::vector<pair> &alphabt) :
-		alphabet( alphabt.size() )
+		alphabet( alphabt)
 {
 
 	std::sort(alphabet.begin(), alphabet.end(), compareByLength);
 
 	////erase nulls at the beginning of a vector
 	std::vector<pair>::iterator p = alphabet.begin();
-	while (p!=alphabet.end() && p->length!=0)
+	while (p!=alphabet.end() && p->length == 0)
 		p=alphabet.erase(p);
 
 	if (alphabet.size()==0)
