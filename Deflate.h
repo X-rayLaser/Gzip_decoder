@@ -14,6 +14,21 @@
 #include "Bit_stream.h"
 #include "Huf_tree.h"
 
+class bad_fstate{
+};
+
+class bad_blctype{
+};
+
+class bad_code{
+};
+
+class bad_clen{
+};
+
+class bad_chksum{
+};
+
 
 const unsigned int OUTBUF_SZ = 100000;
 const unsigned WND_SZ = 32768;
@@ -59,7 +74,7 @@ class Deflate_stream{
 	int get_value(const tree::Huf_tree& htr);
 	void copy_bytes(int len, int dist);
 	tree::Huf_tree get_lenghts_tree(int count);
-	tree::Huf_tree decode_rle(const tree::Huf_tree& htr, int count);
+	std::vector<tree::pair> decode_rle(const tree::Huf_tree& htr, int nlit, int ndist);
 
 	tree::Huf_tree init_fixtree();
 	void uncompressed();

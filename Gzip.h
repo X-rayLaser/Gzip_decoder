@@ -13,6 +13,17 @@
 #include <iostream>
 #include <fstream>
 
+namespace gzip {
+
+class bad_format{
+};
+
+class bad_id{
+};
+
+class bad_fstate{
+};
+
 const unsigned char FTEXT 	 = 1;
 const unsigned char FHCRC 	 = 2;
 const unsigned char FEXTRA   = 4;
@@ -84,5 +95,6 @@ public:
 };
 
 
+}
 
 #endif /* GZIP_H_ */

@@ -1,6 +1,8 @@
 #include "Gzip.h"
 #include "Deflate.h"
 
+namespace gzip {
+
 const unsigned char ID1 = 31;
 const unsigned char ID2 = 139;
 const unsigned char CM  = 8;
@@ -13,7 +15,7 @@ Gzip_stream::Gzip_stream(const std::string fin): in()
 
 	in.open(fin.c_str(), std::ios::in | std::ios::binary);
 	if (!in.is_open())
-		throw ;
+		throw bad_fstate();
 
 	archive_name = fin;
 	extra_f = NULL;
@@ -85,15 +87,15 @@ void Gzip_stream::read_flds()
 {
 	in.read((char*) &(fields.id1), sizeof(char));
 	if (fields.id1 != ID1)
-		throw ;
+		throw bad_id();
 
 	in.read((char*) &fields.id2, sizeof(char));
 	if (fields.id2 != ID2)
-		throw ;
+		throw bad_id();
 
 	in.read((char*) &fields.cm, sizeof(char));
 	if (fields.cm != CM)
-		throw ;
+		throw bad_format();
 
 	in.read((char*) &fields.flg, sizeof(char));
 
@@ -119,7 +121,7 @@ void Gzip_stream::read_fextra()
 	in.read((char*) &data_len, sizeof(unsigned short));
 
 	if (xlen != data_len + 4)
-		throw ;
+		throw bad_format();
 
 	std::vector<unsigned char> data(data_len);
 
@@ -155,3 +157,7 @@ bool Gzip_stream::get_xfield(Extra_field& xfield)
 	else
 		return false;
 }
+
+
+}
+

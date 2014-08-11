@@ -1,14 +1,14 @@
 #include "Deflate.h"
 #include "Huf_tree.h"
-
+#include <iostream>
 const int END_OF_BLOCK = 256 ;
 
 void obuffer::put_byte(unsigned char byte)
 {
 	if (!out.is_open())
-		throw ;
+		throw bad_fstate();
 	if (!out.good())
-		throw ;
+		throw bad_fstate();
 
 	//// when buffer reach definite size write it into ofstream
 	if ( buf.size() == OUTBUF_SZ){
@@ -46,7 +46,7 @@ void obuffer::write(const std::vector<unsigned char>& data )
 void obuffer::close()
 {
 	if (!out.is_open())
-		throw ;
+		throw bad_fstate();
 
 	out.write((char *) &buf[0], sizeof(char) * buf.size());
 	buf.clear();
@@ -172,7 +172,7 @@ void Deflate_stream::decode_block()
 	else if (block_type == 2)
 		dynamic_huf();
 	else
-		throw ;
+		throw bad_blctype();
 
 }
 
@@ -184,7 +184,7 @@ void Deflate_stream::uncompressed()
 	unsigned short nlen = btstr.get_wordLE();
 
 	if ( len != (unsigned short ) ~nlen )
-		throw ;
+		throw bad_chksum();
 
 	//copy bytes from btstr to out
 	for (int i=0 ; i < len; i++){
@@ -203,7 +203,7 @@ void Deflate_stream::fixed_huf()
 	int litlen_code;
 	while ( ( litlen_code=get_value(fix_tr) ) != END_OF_BLOCK )
 		if (litlen_code<0 || litlen_code>285)
-			throw ;
+			throw bad_code();
 		else if (litlen_code<256){
 			w.put_byte(litlen_code);
 			out_buffer.put_byte(litlen_code);
@@ -228,16 +228,28 @@ void Deflate_stream::dynamic_huf()
 	int ndist     = btstr.read_reverse(5) + 1;
 	int nlengths  = btstr.read_reverse(4) + 4;
 
+
 	tree::Huf_tree length_htree = get_lenghts_tree(nlengths);
 
-	tree::Huf_tree litlen_htree = decode_rle(length_htree,nlitlen);
+	std::vector<tree::pair> all_lenghts = decode_rle(length_htree, nlitlen, ndist);
 
-	tree::Huf_tree dist_htree = decode_rle(length_htree, ndist);
+	std::vector<tree::pair> litlen_lenths, dist_lengths;
+	litlen_lenths.reserve(nlitlen);
+	dist_lengths.reserve(ndist);
+
+	litlen_lenths.insert(litlen_lenths.end(), all_lenghts.begin(),
+			all_lenghts.begin() + nlitlen);
+
+	dist_lengths.insert(dist_lengths.end(),
+			all_lenghts.begin() + nlitlen, all_lenghts.end());
+
+	tree::Huf_tree litlen_htree(litlen_lenths);
+	tree::Huf_tree dist_htree(dist_lengths);
 
 	int litlen_code;
 	while ( ( litlen_code=get_value(litlen_htree) ) != END_OF_BLOCK )
 		if (litlen_code<0 || litlen_code>285)
-			throw ;
+			throw bad_code();
 		else if (litlen_code<256){
 			w.put_byte(litlen_code);
 			out_buffer.put_byte(litlen_code);
@@ -264,52 +276,59 @@ tree::Huf_tree Deflate_stream::get_lenghts_tree(int count)
 			tree::pair(12, 0), tree::pair(3, 0),  tree::pair(13, 0), tree::pair(2, 0),
 			tree::pair(14, 0), tree::pair(1, 0),  tree::pair(15, 0)
 	};
+
 	std::vector<tree::pair> code_lengths( &x[0], &x[0]+count );
 
 	std::vector<tree::pair>::iterator p = code_lengths.begin();
 	for ( ; p != code_lengths.end(); p++ )
 		p->length = btstr.read_reverse(3);
 
+
 	return tree::Huf_tree(code_lengths);
 }
 
-tree::Huf_tree Deflate_stream::decode_rle(const tree::Huf_tree& htr, int count)
+std::vector<tree::pair> Deflate_stream::decode_rle(const tree::Huf_tree& htr, int nlit, int ndist)
 {
-	std::vector<tree::pair> alphabt;
-	alphabt.reserve(count);
+	std::vector<tree::pair> alphabt(nlit + ndist);
+	int i ;
+	for ( i=0; i < nlit; i++)
+		alphabt[i].value = i;
+
+	for (int j=0; j < ndist ; i++, j++)
+		alphabt[i].value = j;
 
 	int symbol_ith=0;
-	while ( symbol_ith < count  ){
+	while ( symbol_ith < nlit + ndist  ){
 		int length = get_value(htr);
 
 		if (length < 0)
-			throw ;
+			throw bad_clen();
 		else if (length < 16){
-			alphabt.push_back( tree::pair(symbol_ith,length) );
+			alphabt[symbol_ith].length = length;
 			symbol_ith++;
 		}
 		else if (length == 16){
 			int repeat_counter = btstr.read_reverse(2) + 3;
 
-			struct tree::pair prev = alphabt[alphabt.size()-1];
-			for (int n=0; n < repeat_counter && symbol_ith < count; n++,symbol_ith++)
-				alphabt.push_back( tree::pair(symbol_ith, prev.length) );
+			int prevlength = alphabt[symbol_ith-1].length ;
+			for (int n=0; n < repeat_counter && symbol_ith < nlit + ndist; n++,symbol_ith++)
+				alphabt[symbol_ith].length = prevlength;
 		}
 		else if (length == 17){
 			int repeat_counter = btstr.read_reverse(3) + 3;
-			for (int n=0; n < repeat_counter && symbol_ith < count; n++,symbol_ith++)
-				alphabt.push_back( tree::pair(symbol_ith, 0) );
+			for (int n=0; n < repeat_counter && symbol_ith < nlit + ndist; n++,symbol_ith++)
+				alphabt[symbol_ith].length = 0;
 		}
 		else if (length == 18){
 			int repeat_counter = btstr.read_reverse(7) + 11;
-			for (int n=0; n < repeat_counter && symbol_ith < count; n++,symbol_ith++)
-				alphabt.push_back( tree::pair(symbol_ith, 0) );
+			for (int n=0; n < repeat_counter && symbol_ith < nlit + ndist; n++,symbol_ith++)
+				alphabt[symbol_ith].length = 0;
 		}
 		else
-			throw ;
+			throw bad_clen();
 	}
 
-	return tree::Huf_tree(alphabt);
+	return alphabt ;
 }
 
 

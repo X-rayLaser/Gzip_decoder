@@ -59,8 +59,7 @@ class Huf_tree{
 	void left_edge(struct node* parent );		//create a left edge
 	void right_edge(struct node* parent);		//create a right edge
 	void build_tree();							//create a huffman tree
-	void delete_left(struct node* ancestor);	//free memory for a left branch
-	void delete_right(struct node* ancestor);	//free memory for a right branch
+	void delete_node(struct node* descendant);	//free memory for a given descendant node
 public:
 	Huf_tree(const std::vector<pair> &alphabt);
 	Huf_tree(const Huf_tree& htr);

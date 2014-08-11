@@ -27,12 +27,36 @@ int main()
 	out.close();
 */
 
-	Gzip_stream gzstr("D:\\EclipseKepler\\eclipse\\myprojects\\GzipDecoder\\Debug\\joel.djvu.gz");
+	gzip::Gzip_stream gzstr("D:\\EclipseKepler\\eclipse\\myprojects\\GzipDecoder\\Debug\\biorne.gz");
 	try{
-	gzstr.decode();
+		gzstr.decode();
 	}
-	catch ( unsigned  int x){
-			cout<<x;
+	catch(tree::bad_code)
+	{
+		cout<<"tree bad code";
+	}
+	catch(buf_excpt&){
+		cout<<"buf_excpt";
+	}
+	catch (bad_clen){
+		cout<<"bad_clen";
+	}
+	catch (bad_code){
+		cout<<"bad_code\n";
+	}
+	catch (bad_blctype){
+		cout<<"bad_blctype\n";
+	}
+	catch (bad_chksum){
+		cout<<"bad_chksum  \n";
+	}
+	catch (vector<tree::pair> v){
+		for (int i=0; i<v.size(); i++)
+			cout<<v[i].value<<"   "<<v[i].length<<'\n';
+			cout<<"other problem\n";
+	}
+	catch (int x){
+		cout<< x;
 	}
 
 	system("Pause");
