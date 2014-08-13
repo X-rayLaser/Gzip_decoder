@@ -140,7 +140,8 @@ Deflate_stream::Deflate_stream(const char* fin, const char* fout, int offset) :
 tree::Huf_tree Deflate_stream::init_fixtree()
 {
 	const int CODES_COUNT = 288;
-	std::vector<tree::pair> code_lenths(CODES_COUNT);
+	std::vector<tree::pair> code_lenths;
+	code_lenths.reserve(CODES_COUNT);
 
 	int litval;
 	for (litval=0; litval<=143; litval++)
@@ -212,7 +213,8 @@ void Deflate_stream::fixed_huf()
 			int len = lengths[litlen_code].min_val + btstr.read_reverse(lengths[litlen_code].bits);
 
 			int dist_code = btstr.read_reverse(5);
-
+			if (dist_code >=30)
+				throw bad_code();
 			int dist = distances[dist_code].min_val + btstr.read_reverse(distances[dist_code].bits);
 
 			copy_bytes(len, dist);
@@ -258,7 +260,8 @@ void Deflate_stream::dynamic_huf()
 			int len = lengths[litlen_code].min_val + btstr.read_reverse(lengths[litlen_code].bits);
 
 			int dist_code = get_value(dist_htree);
-
+			if (dist_code >=30)
+				throw bad_code();
 			int dist = distances[dist_code].min_val + btstr.read_reverse(distances[dist_code].bits);
 
 			copy_bytes(len, dist);
@@ -309,7 +312,6 @@ std::vector<tree::pair> Deflate_stream::decode_rle(const tree::Huf_tree& htr, in
 		}
 		else if (length == 16){
 			int repeat_counter = btstr.read_reverse(2) + 3;
-
 			int prevlength = alphabt[symbol_ith-1].length ;
 			for (int n=0; n < repeat_counter && symbol_ith < nlit + ndist; n++,symbol_ith++)
 				alphabt[symbol_ith].length = prevlength;
@@ -327,6 +329,9 @@ std::vector<tree::pair> Deflate_stream::decode_rle(const tree::Huf_tree& htr, in
 		else
 			throw bad_clen();
 	}
+
+	if (alphabt[END_OF_BLOCK].length == 0)
+		throw bad_codetbl();
 
 	return alphabt ;
 }

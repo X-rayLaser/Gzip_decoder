@@ -29,6 +29,8 @@ class bad_clen{
 class bad_chksum{
 };
 
+class bad_codetbl{
+};
 
 const unsigned int OUTBUF_SZ = 100000;
 const unsigned WND_SZ = 32768;

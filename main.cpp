@@ -5,58 +5,45 @@
 #include "Huf_tree.h"
 #include "Bit_stream.h"
 #include "Deflate.h"
-using namespace std;
+//using namespace std;
 
 
 
 int main()
 {
-	/*
-	obuffer out("D:\\EclipseKepler\\eclipse\\myprojects\\GzipDecoder\\Debuggurka.txt");
-	ibuffer btstr("D:\\IT\\messagetxt.txt",0);
 
-    unsigned char ch;
-	while (! btstr.eof() ){
-		vector<unsigned char> v;
-		v.reserve(1000);
-		for (int i=0; i<1000 && !btstr.eof(); i++)
-			v.push_back(btstr.get_byte()) ;
 
-		out.write(v);
-	}
-	out.close();
-*/
 
-	gzip::Gzip_stream gzstr("D:\\EclipseKepler\\eclipse\\myprojects\\GzipDecoder\\Debug\\biorne.gz");
+	gzip::Gzip_stream gzstr("D:\\EclipseKepler\\eclipse\\myprojects\\GzipDecoder\\Debug\\Final Destination 3 soundtrack.wav.gz");
 	try{
 		gzstr.decode();
 	}
 	catch(tree::bad_code)
 	{
-		cout<<"tree bad code";
+		std::cout<<"tree bad code";
 	}
 	catch(buf_excpt&){
-		cout<<"buf_excpt";
+		std::cout<<"buf_excpt";
 	}
 	catch (bad_clen){
-		cout<<"bad_clen";
+		std::cout<<"bad_clen";
 	}
 	catch (bad_code){
-		cout<<"bad_code\n";
+		std::cout<<"bad_code\n";
 	}
 	catch (bad_blctype){
-		cout<<"bad_blctype\n";
+		std::cout<<"bad_blctype\n";
 	}
 	catch (bad_chksum){
-		cout<<"bad_chksum  \n";
+		std::cout<<"bad_chksum  \n";
 	}
-	catch (vector<tree::pair> v){
-		for (int i=0; i<v.size(); i++)
-			cout<<v[i].value<<"   "<<v[i].length<<'\n';
-			cout<<"other problem\n";
+	catch (Bit_stream* str){
+
+		for (int i=0; i<10; i++)
+			std::cout<< str->get_byte()<<" ";
 	}
 	catch (int x){
-		cout<< x;
+		std::cout<< x;
 	}
 
 	system("Pause");
