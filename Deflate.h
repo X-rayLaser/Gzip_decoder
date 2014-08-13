@@ -78,7 +78,8 @@ class Deflate_stream{
 	tree::Huf_tree get_lenghts_tree(int count);
 	std::vector<tree::pair> decode_rle(const tree::Huf_tree& htr, int nlit, int ndist);
 
-	tree::Huf_tree init_fixtree();
+	tree::Huf_tree init_lentree();
+	tree::Huf_tree init_disttree();
 	void uncompressed();
 	void fixed_huf();
 	void dynamic_huf();

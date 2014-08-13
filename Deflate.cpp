@@ -137,27 +137,43 @@ Deflate_stream::Deflate_stream(const char* fin, const char* fout, int offset) :
 
 }
 
-tree::Huf_tree Deflate_stream::init_fixtree()
+/*construct fixed literal/length tree */
+tree::Huf_tree Deflate_stream::init_lentree()
 {
 	const int CODES_COUNT = 288;
-	std::vector<tree::pair> code_lenths;
-	code_lenths.reserve(CODES_COUNT);
+	std::vector<tree::pair> code_lengths;
+	code_lengths.reserve(CODES_COUNT);
 
 	int litval;
 	for (litval=0; litval<=143; litval++)
-		code_lenths.push_back( tree::pair(litval, 8));
+		code_lengths.push_back( tree::pair(litval, 8));
 
 	for (litval=144; litval<=255; litval++)
-		code_lenths.push_back(tree::pair(litval,9));
+		code_lengths.push_back(tree::pair(litval,9));
 
 	for (litval=256; litval<=279; litval++)
-		code_lenths.push_back(tree::pair(litval,7));
+		code_lengths.push_back(tree::pair(litval,7));
 
 	for (litval=280; litval<=287; litval++)
-		code_lenths.push_back(tree::pair(litval,8));
+		code_lengths.push_back(tree::pair(litval,8));
 
-	return tree::Huf_tree(code_lenths);
+	return tree::Huf_tree(code_lengths);
 
+}
+
+/*construct incomplete fixed distances tree */
+tree::Huf_tree Deflate_stream::init_disttree()
+{
+	//maximum number of distance codes
+	const int DIST_CODE_COUNT = 30;
+
+	std::vector<tree::pair> code_lengths;
+	code_lengths.reserve(DIST_CODE_COUNT);
+
+	for (int i=0; i<DIST_CODE_COUNT; i++)
+		code_lengths.push_back( tree::pair(i,5));
+
+	return tree::Huf_tree(code_lengths);
 }
 
 void Deflate_stream::decode_block()
@@ -199,10 +215,11 @@ void Deflate_stream::uncompressed()
 void Deflate_stream::fixed_huf()
 {
 
-	static tree::Huf_tree fix_tr = init_fixtree();
+	static tree::Huf_tree len_tree  = init_lentree();
+	static tree::Huf_tree dist_tree = init_disttree();
 
 	int litlen_code;
-	while ( ( litlen_code=get_value(fix_tr) ) != END_OF_BLOCK )
+	while ( ( litlen_code=get_value(len_tree) ) != END_OF_BLOCK )
 		if (litlen_code<0 || litlen_code>285)
 			throw bad_code();
 		else if (litlen_code<256){
@@ -212,7 +229,7 @@ void Deflate_stream::fixed_huf()
 		else if (litlen_code>256){
 			int len = lengths[litlen_code].min_val + btstr.read_reverse(lengths[litlen_code].bits);
 
-			int dist_code = btstr.read_reverse(5);
+			int dist_code = get_value(dist_tree);
 			if (dist_code >=30)
 				throw bad_code();
 			int dist = distances[dist_code].min_val + btstr.read_reverse(distances[dist_code].bits);
@@ -311,6 +328,8 @@ std::vector<tree::pair> Deflate_stream::decode_rle(const tree::Huf_tree& htr, in
 			symbol_ith++;
 		}
 		else if (length == 16){
+			if (symbol_ith == 0)
+				throw ;
 			int repeat_counter = btstr.read_reverse(2) + 3;
 			int prevlength = alphabt[symbol_ith-1].length ;
 			for (int n=0; n < repeat_counter && symbol_ith < nlit + ndist; n++,symbol_ith++)

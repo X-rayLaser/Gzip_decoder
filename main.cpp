@@ -14,7 +14,7 @@ int main()
 
 
 
-	gzip::Gzip_stream gzstr("D:\\EclipseKepler\\eclipse\\myprojects\\GzipDecoder\\Debug\\Final Destination 3 soundtrack.wav.gz");
+	gzip::Gzip_stream gzstr("D:\\EclipseKepler\\eclipse\\myprojects\\GzipDecoder\\Debug\\burk.djvu.gz");
 	try{
 		gzstr.decode();
 	}
@@ -37,10 +37,10 @@ int main()
 	catch (bad_chksum){
 		std::cout<<"bad_chksum  \n";
 	}
-	catch (Bit_stream* str){
+	catch (std::vector<tree::pair> v){
 
-		for (int i=0; i<10; i++)
-			std::cout<< str->get_byte()<<" ";
+		for (int i=0; i<v.size(); i++)
+			std::cout<< v[i].value<<" "<<v[i].length<<'\n';
 	}
 	catch (int x){
 		std::cout<< x;
