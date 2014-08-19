@@ -17,37 +17,52 @@ ibuffer::ibuffer(const char* fname, int offset): in(), buf(INBUF_SZ)
 
 void ibuffer::refill()
 {
-	/* It's the way to determine that either
-	 * the end of file was achieved or reading error has occurred
-	 * However it doesn't work for all cases, especially when
-	 */
 	if (!in.good() )
 		throw bad_refill();
 
 	in.read((char*) &buf[0], sizeof(char)*buf.size());
 
-	data_size = in.gcount();
-	if (data_size == 0)
+	buf_end = buf.begin() + in.gcount();
+	if (buf_end == buf.begin() )		 //if the end of file was achieved
 		is_end = true;
 
 	if (!in.good() && !in.eof())
 		throw bad_refill();
 
-	byte_pos=0;
+	pbuf=buf.begin();
 }
 
-unsigned char ibuffer::get_byte()
+
+int ibuffer::read(std::vector<unsigned char>& dest, int count)
 {
-	if (byte_pos < data_size){
-		unsigned char byte = buf[byte_pos];
-		byte_pos++;
-		return  byte;
-	}
-	else {
+	if (count == 0)
+		return 0;
+
+	int buffer_space = buf_end - pbuf ;
+	if (count > buffer_space){
+		int remain_count = count - buffer_space;
+		if (pbuf != buf_end)
+			dest.insert(dest.end(), pbuf, buf_end);
+
 		refill();
-		unsigned char byte = buf[byte_pos];
-		byte_pos++;
-		return  byte;
+		if (is_end)
+			return buffer_space ;
+
+		if (pbuf + remain_count <= buf_end){
+			dest.insert(dest.end(), buf.begin(), buf.begin() + remain_count );
+			pbuf += remain_count;  //new bytepos
+			return buffer_space + remain_count ;
+		}
+
+		dest.insert(dest.end(), pbuf , buf_end );
+		pbuf = buf_end;
+		return buffer_space + buf_end - buf.begin()  ;
+	}
+	else{
+		dest.insert(dest.end(), pbuf,  pbuf + count);
+		pbuf += count ;  //new bytepos
+
+		return count ;
 	}
 }
 
@@ -63,32 +78,31 @@ Bit_stream::Bit_stream(const char* fname, int offset): in_buffer(fname, offset)
 
 bool Bit_stream::get_bit()
 {
-	static unsigned char bits[8] = {1, 2, 4, 8, 16, 32, 64, 128};
-
 	if (bit_pos == 8){
 		cur_byte = in_buffer.get_byte();
 		bit_pos = 0;
 	}
 
 
-	unsigned char bit = cur_byte & bits[bit_pos];
-	if (bit_pos != 0)
-		bit = bit >> bit_pos;
+	if (bit_pos == 0){
+		bit_pos++;
+		return (cur_byte & 1) == 1;
+	}
 
-	bit_pos++;
-
-	return bit == 1;
+	return ( (cur_byte >> bit_pos++) & 1) == 1;
 }
 
 /* read a given number of bits in MSB order */
 int Bit_stream::read_reverse(int bit_count)
 {
+	if (bit_count == 0)
+		return 0;
+
 	int res = 0;
-	for (int i = 0; i < bit_count; i++)
-		if (i == 0)
-			res = res | get_bit() ;
-		else
-			res = res | ( (get_bit()) << i);
+
+	res = res | get_bit();
+	for (int i = 1; i < bit_count; i++)
+		res = res | ( (get_bit()) << i);
 
 	return res;
 }
@@ -132,5 +146,3 @@ void Bit_stream::skip_bits()
 		bit_pos = 0;
 	}
 }
-
-

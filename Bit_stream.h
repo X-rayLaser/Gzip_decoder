@@ -12,6 +12,7 @@
 #include <fstream>
 #include <vector>
 
+
 const int INBUF_SZ = 100000;
 
 class buf_excpt{
@@ -26,15 +27,22 @@ class bad_refill: public buf_excpt{
 class ibuffer {
 	std::ifstream in;
 	std::vector<unsigned char> buf;
-	int byte_pos;
-	int data_size;
+	std::vector<unsigned char>::const_iterator pbuf;
+	std::vector<unsigned char>::const_iterator buf_end;
 	bool is_end;
 
 	void refill();
 public:
 	ibuffer(const char* fname, int offset );
-	unsigned char get_byte();
+	unsigned char get_byte()
+	{
+		if (pbuf == buf_end)
+			refill();
 
+		return  *pbuf++;
+	}
+
+	int read(std::vector<unsigned char>& dest, int count);
 	bool eof()
 	{
 		return is_end ;
@@ -54,6 +62,20 @@ public:
 	void skip_bits();
 	unsigned short get_wordLE();  //get little endian word
 	unsigned char get_byte();
+	int copy(std::vector<unsigned char>& dest, int count)
+	{
+		if (count == 0)
+			return 0;
+
+		dest.push_back(cur_byte);
+		count--;
+
+		int byte_count = in_buffer.read(dest, count) ;
+		cur_byte = in_buffer.get_byte();
+		bit_pos = 0;
+		return  byte_count + 1;
+	}
+
 	bool end_of_stream() 		 { return in_buffer.eof(); }
 	bool end_of_bits()
 	{
@@ -61,6 +83,5 @@ public:
 	}
 	void close() { in_buffer.close(); }
 };
-
 
 #endif /* BIT_STREAM_H_ */

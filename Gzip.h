@@ -85,7 +85,7 @@ public:
 	unsigned int  get_mtime()   { return fields.mtime; }
 	unsigned char get_os()		{ return fields.os;	   }
 
-	inline bool get_xfield(Extra_field& xfield);
+	bool get_xfield(Extra_field& xfield);
 
 	~Gzip_stream()
 	{

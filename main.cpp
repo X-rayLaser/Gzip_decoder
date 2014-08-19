@@ -5,16 +5,11 @@
 #include "Huf_tree.h"
 #include "Bit_stream.h"
 #include "Deflate.h"
-//using namespace std;
-
-
 
 int main()
 {
 
-
-
-	gzip::Gzip_stream gzstr("D:\\EclipseKepler\\eclipse\\myprojects\\GzipDecoder\\Debug\\burk.djvu.gz");
+	gzip::Gzip_stream gzstr("D:\\EclipseKepler\\eclipse\\myprojects\\GzipDecoder\\Debug\\messagetxt.txt.gz");
 	try{
 		gzstr.decode();
 	}
@@ -37,10 +32,8 @@ int main()
 	catch (bad_chksum){
 		std::cout<<"bad_chksum  \n";
 	}
-	catch (std::vector<tree::pair> v){
-
-		for (int i=0; i<v.size(); i++)
-			std::cout<< v[i].value<<" "<<v[i].length<<'\n';
+	catch (std::vector<unsigned char> v){
+			std::cout<<v.size();
 	}
 	catch (int x){
 		std::cout<< x;

@@ -32,7 +32,8 @@ class bad_chksum{
 class bad_codetbl{
 };
 
-const unsigned int OUTBUF_SZ = 100000;
+const unsigned int MEMORY_LIMIT = 100000000 ;
+const unsigned int CMP_RATIO = 3;
 const unsigned WND_SZ = 32768;
 
 struct extra_bits{
@@ -43,25 +44,33 @@ struct extra_bits{
 class obuffer {
 	std::ofstream out;
 	std::vector<unsigned char> buf;
+	unsigned int max_size;
+	unsigned int data_size;
+
+	void flush_buf();
+	void write_raw(const unsigned char* data, int size);
 public:
-	obuffer(const char* fname) : out()
+	obuffer(const char* fname, int finp_size) : out()
 	{
-		out.open(fname,std::ios::out | std::ios::binary);
-		buf.reserve(OUTBUF_SZ);
+		max_size = finp_size * CMP_RATIO ;
+		if (max_size > MEMORY_LIMIT)
+			max_size = MEMORY_LIMIT;
+		else if (max_size < WND_SZ)
+			max_size = WND_SZ * 2 ;
+
+		data_size = 0;
+		out.open(fname, std::ios::out | std::ios::binary);
+		buf.resize(max_size) ;
 	}
-	void put_byte(unsigned char byte);
-	void write(const std::vector<unsigned char>& data);
+
+	void write(const std::vector<unsigned char>& data)
+	{
+		write_raw(&data[0], data.size()) ;
+	}
+
+	void put_byte(const unsigned char& byte);
+	void copy(int len, int dist);
 	void close();
-};
-
-
-class wnd32k{
-	std::vector<unsigned char> wnd;
-public:
-	wnd32k(){ wnd.reserve(2*WND_SZ);}
-	void put_byte(unsigned char byte);
-	void append(const std::vector<unsigned char>& v );
-	std::vector<unsigned char> retrieve(int len, int dist);
 };
 
 
@@ -70,11 +79,9 @@ class Deflate_stream{
 	std::map<int, struct extra_bits> distances ;
 	Bit_stream btstr;
 	obuffer out_buffer;
-	wnd32k w;
 	bool last_block;
 
 	int get_value(const tree::Huf_tree& htr);
-	void copy_bytes(int len, int dist);
 	tree::Huf_tree get_lenghts_tree(int count);
 	std::vector<tree::pair> decode_rle(const tree::Huf_tree& htr, int nlit, int ndist);
 

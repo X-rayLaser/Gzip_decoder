@@ -89,28 +89,28 @@ void Gzip_stream::read_flds()
 	if (fields.id1 != ID1)
 		throw bad_id();
 
-	in.read((char*) &fields.id2, sizeof(char));
+	in.read((char*) &(fields.id2), sizeof(char));
 	if (fields.id2 != ID2)
 		throw bad_id();
 
-	in.read((char*) &fields.cm, sizeof(char));
+	in.read((char*) &(fields.cm), sizeof(char));
 	if (fields.cm != CM)
 		throw bad_format();
 
-	in.read((char*) &fields.flg, sizeof(char));
+	in.read((char*) &(fields.flg), sizeof(char));
 
-	in.read((char*) &fields.mtime, sizeof(unsigned int));
+	in.read((char*) &(fields.mtime), sizeof(unsigned int));
 
-	in.read((char*) &fields.xfl, sizeof(char));
+	in.read((char*) &(fields.xfl), sizeof(char));
 
-	in.read((char*) &fields.os, sizeof(char));
+	in.read((char*) &(fields.os), sizeof(char));
 }
 
 void Gzip_stream::read_fextra()
 {
 	unsigned short xlen ;
 
-	in.read((char *) & xlen, sizeof(unsigned short));
+	in.read((char *) &xlen, sizeof(unsigned short));
 
 	unsigned char si1, si2;
 

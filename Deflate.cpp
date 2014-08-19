@@ -3,44 +3,79 @@
 #include <iostream>
 const int END_OF_BLOCK = 256 ;
 
-void obuffer::put_byte(unsigned char byte)
+void obuffer::flush_buf()
+{
+	int byte_count = max_size - WND_SZ;
+	out.write((char *) &buf[0], sizeof(char) * byte_count);
+	if (!out.good())
+		throw bad_fstate();
+	std::copy( buf.end() - WND_SZ, buf.end(), buf.begin() );
+	data_size = WND_SZ ;
+}
+
+void obuffer::put_byte(const unsigned char& byte)
 {
 	if (!out.is_open())
 		throw bad_fstate();
 	if (!out.good())
 		throw bad_fstate();
 
-	//// when buffer reach definite size write it into ofstream
-	if ( buf.size() == OUTBUF_SZ){
-		out.write((char *) &buf[0], sizeof(char) * buf.size());
-		buf.clear();
-	}
+	//// when buffer reach definite size
+	if ( data_size == max_size)
+		flush_buf();
 
 	////add another byte to the buffer
-	buf.push_back(byte);
+	buf[data_size++] = byte;
 }
 
-void obuffer::write(const std::vector<unsigned char>& data )
+void obuffer::write_raw(const unsigned char* data, int size)
 {
 	//// when buffer reach definite size write it into ofstream
-	if ( buf.size() == OUTBUF_SZ){
-		out.write((char *) &buf[0], sizeof(char) * buf.size());
-		buf.clear();
-	}
+	if ( data_size == max_size)
+		flush_buf();
 
 	/* if data contains more bytes than the amount of available
 	 * bytes in a buffer,
 	 */
-	if (data.size() > OUTBUF_SZ - buf.size()  ){
-		std::vector<unsigned char>::const_iterator p = data.begin() +  (OUTBUF_SZ - buf.size() + 1);
-		buf.insert(buf.end(), data.begin(), p);
-		out.write((char *) &buf[0], sizeof(char) * buf.size());
-		buf.clear();
-		buf.insert(buf.end(),  p, data.end());
-	}
-	else
-		buf.insert(buf.end(), data.begin(), data.end());
+	unsigned buf_space = max_size - data_size ;
+	if ( (unsigned) size > buf_space  ){
+		std::copy(&data[0],  &data[0] + buf_space, &buf[data_size]);
 
+		flush_buf();
+
+		std::copy(&data[0] + buf_space, &data[0] + size, &buf[data_size] );
+		data_size += (size - buf_space);
+	}
+	else{
+		std::copy(&data[0], &data[0] + size, &buf[data_size] );
+		data_size +=size ;
+	}
+}
+
+
+void obuffer::copy(int len, int dist)
+{
+	//defining index of an element to start copy bytes from
+	int first_ind = data_size - dist;
+
+	if (len <=dist){
+
+		write_raw( &buf[first_ind], len );
+		return ;
+	}
+
+	/* retrieves address to the beginning of bytes in the vector to be copied
+	 * and appends them to the same vector (buf). Copy bytes as many as dist
+	 */
+	while (len >= dist){
+		write_raw(&buf[first_ind], dist);
+		len -= dist;
+	}
+
+	/* copies remaining bytes one by one */
+	int indx = first_ind;
+	for (  ; len !=0 ; indx++, len--)
+		put_byte( int(buf[indx]) );
 }
 
 void obuffer::close()
@@ -48,61 +83,17 @@ void obuffer::close()
 	if (!out.is_open())
 		throw bad_fstate();
 
-	out.write((char *) &buf[0], sizeof(char) * buf.size());
+	out.write((char *) &buf[0], sizeof(char) * data_size);
+	if (!out.good())
+		throw bad_fstate();
 	buf.clear();
 	out.close();
 }
 
 
 
-void wnd32k::put_byte(unsigned char byte)
-{
-	if (wnd.size() < WND_SZ)
-		wnd.push_back(byte);
-	else
-	{
-		wnd.push_back(byte);
-		wnd.erase(wnd.begin());
-	}
-}
-
-void wnd32k::append(const std::vector<unsigned char>& v )
-{
-	wnd.insert(wnd.end(), v.begin(), v.end()) ;
-
-	if (wnd.size() > WND_SZ){
-		int nelem = wnd.size() - WND_SZ +1;
-		wnd.erase(wnd.begin(), wnd.begin() + nelem);
-	}
-
-}
-
-std::vector<unsigned char> wnd32k::retrieve(int len, int dist)
-{
-	//defining index of an element to start copy bytes from
-	std::vector<unsigned char>::iterator ith = wnd.begin() + wnd.size() - dist;
-
-	std::vector<unsigned char> retrv_bytes;
-	retrv_bytes.reserve(len);
-	if (len > dist)
-	{
-		retrv_bytes.insert(retrv_bytes.end(), ith, wnd.end());
-
-		while ( retrv_bytes.size() < (unsigned int) len ){
-			ith = wnd.begin() + wnd.size() - dist;
-			for ( ; ith!=wnd.end() && retrv_bytes.size() < (unsigned int) len ; ith++)
-				retrv_bytes.push_back(*ith);
-		}
-	}
-	else
-		retrv_bytes.insert(retrv_bytes.end(), ith, ith + len);
-
-	return retrv_bytes;
-}
-
-
 Deflate_stream::Deflate_stream(const char* fin, const char* fout, int offset) :
-		btstr(fin, offset), out_buffer(fout)
+		btstr(fin, offset), out_buffer(fout, 320000)
 {
 	last_block = false;
 
@@ -130,10 +121,10 @@ Deflate_stream::Deflate_stream(const char* fin, const char* fout, int offset) :
 
 	int i=0;
 	for (int code=257; code<=285; code++, i++)
-		lengths[code] = len_bts[i];
+		lengths.insert(std::make_pair(code, len_bts[i]));
 
 	for (int code=0; code<=29; code++)
-		distances[code] = dist_bts[code];
+		distances.insert(std::make_pair(code,  dist_bts[code]));
 
 }
 
@@ -204,11 +195,17 @@ void Deflate_stream::uncompressed()
 		throw bad_chksum();
 
 	//copy bytes from btstr to out
-	for (int i=0 ; i < len; i++){
-		unsigned char byte = btstr.get_byte();
-		w.put_byte( byte );
-		out_buffer.put_byte( byte );
-	}
+	std::vector<unsigned char> stored;
+	stored.reserve(len);
+
+
+	int count = btstr.copy(stored, len);
+
+	if (count !=len)
+		throw ;
+
+	if (len > 0)
+		out_buffer.write(stored);
 
 }
 
@@ -222,10 +219,8 @@ void Deflate_stream::fixed_huf()
 	while ( ( litlen_code=get_value(len_tree) ) != END_OF_BLOCK )
 		if (litlen_code<0 || litlen_code>285)
 			throw bad_code();
-		else if (litlen_code<256){
-			w.put_byte(litlen_code);
+		else if (litlen_code<256)
 			out_buffer.put_byte(litlen_code);
-		}
 		else if (litlen_code>256){
 			int len = lengths[litlen_code].min_val + btstr.read_reverse(lengths[litlen_code].bits);
 
@@ -234,7 +229,7 @@ void Deflate_stream::fixed_huf()
 				throw bad_code();
 			int dist = distances[dist_code].min_val + btstr.read_reverse(distances[dist_code].bits);
 
-			copy_bytes(len, dist);
+			out_buffer.copy(len, dist);
 		}
 
 }
@@ -252,15 +247,11 @@ void Deflate_stream::dynamic_huf()
 
 	std::vector<tree::pair> all_lenghts = decode_rle(length_htree, nlitlen, ndist);
 
-	std::vector<tree::pair> litlen_lenths, dist_lengths;
-	litlen_lenths.reserve(nlitlen);
-	dist_lengths.reserve(ndist);
-
-	litlen_lenths.insert(litlen_lenths.end(), all_lenghts.begin(),
+	std::vector<tree::pair> litlen_lenths(all_lenghts.begin(),
 			all_lenghts.begin() + nlitlen);
 
-	dist_lengths.insert(dist_lengths.end(),
-			all_lenghts.begin() + nlitlen, all_lenghts.end());
+	std::vector<tree::pair> dist_lengths(all_lenghts.begin()+nlitlen,
+			all_lenghts.begin() + nlitlen + ndist);
 
 	tree::Huf_tree litlen_htree(litlen_lenths);
 	tree::Huf_tree dist_htree(dist_lengths);
@@ -269,10 +260,8 @@ void Deflate_stream::dynamic_huf()
 	while ( ( litlen_code=get_value(litlen_htree) ) != END_OF_BLOCK )
 		if (litlen_code<0 || litlen_code>285)
 			throw bad_code();
-		else if (litlen_code<256){
-			w.put_byte(litlen_code);
+		else if (litlen_code<256)
 			out_buffer.put_byte(litlen_code);
-		}
 		else if (litlen_code>256){
 			int len = lengths[litlen_code].min_val + btstr.read_reverse(lengths[litlen_code].bits);
 
@@ -281,7 +270,7 @@ void Deflate_stream::dynamic_huf()
 				throw bad_code();
 			int dist = distances[dist_code].min_val + btstr.read_reverse(distances[dist_code].bits);
 
-			copy_bytes(len, dist);
+			out_buffer.copy(len, dist);
 		}
 }
 
@@ -323,30 +312,31 @@ std::vector<tree::pair> Deflate_stream::decode_rle(const tree::Huf_tree& htr, in
 
 		if (length < 0)
 			throw bad_clen();
-		else if (length < 16){
-			alphabt[symbol_ith].length = length;
-			symbol_ith++;
-		}
+		else if (length < 16)
+			alphabt[symbol_ith++].length = length;
 		else if (length == 16){
 			if (symbol_ith == 0)
 				throw ;
 			int repeat_counter = btstr.read_reverse(2) + 3;
 			int prevlength = alphabt[symbol_ith-1].length ;
-			for (int n=0; n < repeat_counter && symbol_ith < nlit + ndist; n++,symbol_ith++)
+			for ( ; repeat_counter-- ; symbol_ith++)
 				alphabt[symbol_ith].length = prevlength;
 		}
 		else if (length == 17){
 			int repeat_counter = btstr.read_reverse(3) + 3;
-			for (int n=0; n < repeat_counter && symbol_ith < nlit + ndist; n++,symbol_ith++)
+			for ( ; repeat_counter-- ; symbol_ith++)
 				alphabt[symbol_ith].length = 0;
 		}
 		else if (length == 18){
 			int repeat_counter = btstr.read_reverse(7) + 11;
-			for (int n=0; n < repeat_counter && symbol_ith < nlit + ndist; n++,symbol_ith++)
+			for ( ;  repeat_counter--  ;  symbol_ith++)
 				alphabt[symbol_ith].length = 0;
 		}
 		else
 			throw bad_clen();
+
+		if (symbol_ith > nlit + ndist)
+			throw ; //more codes then specified
 	}
 
 	if (alphabt[END_OF_BLOCK].length == 0)
@@ -355,17 +345,6 @@ std::vector<tree::pair> Deflate_stream::decode_rle(const tree::Huf_tree& htr, in
 	return alphabt ;
 }
 
-
-void Deflate_stream::copy_bytes(int len, int dist)
-{
-	std::vector<unsigned char> v;
-
-	v = w.retrieve(len, dist);
-
-	w.append(v);
-
-	out_buffer.write(v);
-}
 
 int Deflate_stream::get_value(const tree::Huf_tree& htr)
 {
