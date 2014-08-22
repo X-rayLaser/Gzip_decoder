@@ -1,5 +1,6 @@
 #include "Gzip.h"
 #include "Deflate.h"
+#include "boost/crc.hpp"
 
 namespace gzip {
 
@@ -7,13 +8,13 @@ const unsigned char ID1 = 31;
 const unsigned char ID2 = 139;
 const unsigned char CM  = 8;
 
+const int BUFFER_SIZE = 512 ; // (in KB) for reading an output file and calculating its crc32 check sum
 
-
-Gzip_stream::Gzip_stream(const std::string fin): in()
+Gzip_stream::Gzip_stream(boost::filesystem::path&  fin): in()
 {
-	const int CRC_OFFSET = 8; //offset from the end of the file
+	const std::streamoff CRC_OFFSET = 8; //offset from the end of the file
 
-	in.open(fin.c_str(), std::ios::in | std::ios::binary);
+	in.open(fin, std::ios::in | std::ios::binary);
 	if (!in.is_open())
 		throw bad_fstate();
 
@@ -42,17 +43,18 @@ Gzip_stream::Gzip_stream(const std::string fin): in()
 
 	offset = in.tellg();
 
-	in.seekg(CRC_OFFSET, std::ios::end );
-	in.read((char *) &fields.crc32, sizeof(unsigned long));
-	in.read((char *) & fields.isize, sizeof(unsigned long));
+	in.seekg(-CRC_OFFSET, std::ios::end );
+	in.read((char *) &(fields.crc32), sizeof(unsigned long));
+	in.read((char *) &(fields.isize), sizeof(unsigned long));
 	in.close();
 }
 
 void Gzip_stream::decode()
 {
-	std::string output_fn = output_fname();
+	boost::filesystem::path output_fn = output_fname();
 
-	Deflate_stream str(archive_name.c_str(), output_fn.c_str(), offset);
+	size_t input_sz = boost::filesystem::file_size(archive_name);
+	Deflate_stream str(archive_name, output_fn, offset, input_sz);
 
 	do {
 		str.decode_block();
@@ -63,25 +65,27 @@ void Gzip_stream::decode()
 
 }
 
-std::string Gzip_stream::output_fname()
+
+boost::filesystem::path  Gzip_stream::output_fname()
 {
-	////extract path to the archive file and extract the name
-	////of an archive itself (not including .gz)
-	unsigned int indx = archive_name.find_last_of("/\\");
-	std::string arch_dir = archive_name.substr(0,indx);
-	std::string archive_file = archive_name.substr(indx  + 1);
+	////extract path to the archive file
+	boost::filesystem::path output_fn = archive_name.parent_path();
 
-	if (fname !="")
-		return arch_dir + "\\" + fname;
 
-	////if a field fname is absent in the gzip header then:
-	unsigned int ch_indx = archive_file.find_last_not_of('.');
-	std::string s = archive_file.substr(0,ch_indx);
-	if (s=="")
-		return arch_dir + "\\" + "unpacked_with_Gzip_decoder";
+	////add the name of an archive itself (not including .gz)
+	if (fname !=""){
+		boost::filesystem::path p(fname);
+		output_fn /= p;
+	}
+	else if ( archive_name.stem().string() =="")
+		output_fn /= "unpacked_with_Gzip_decoder";
 	else
-		return arch_dir + "\\" + s;
+		output_fn /= archive_name.stem() ;
+
+	return output_fn ;
 }
+
+
 
 void Gzip_stream::read_flds()
 {
@@ -158,6 +162,24 @@ bool Gzip_stream::get_xfield(Extra_field& xfield)
 		return false;
 }
 
+bool Gzip_stream::is_correct()
+{
+	boost::crc_32_type  crc32;
+	boost::filesystem::path  full_fn = output_fname();
+	boost::filesystem::ifstream  ifs( full_fn, std::ios_base::binary );
+
+	std::vector<char>  buffer(BUFFER_SIZE * 1024);
+
+	do
+	{
+		ifs.read( &buffer[0], buffer.size() );
+		crc32.process_bytes( &buffer[0], ifs.gcount() );
+	} while ( ifs );
+
+	ifs.close();
+	return crc32.checksum() == fields.crc32 ;
+
+}
 
 }
 

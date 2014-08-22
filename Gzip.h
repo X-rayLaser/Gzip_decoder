@@ -11,7 +11,8 @@
 #include <vector>
 #include <string>
 #include <iostream>
-#include <fstream>
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
 
 namespace gzip {
 
@@ -58,8 +59,8 @@ typedef struct {
 
 
 class Gzip_stream   {
-	std::ifstream  in;
-	std::string    archive_name;
+	boost::filesystem::ifstream  in;
+	boost::filesystem::path      archive_name;
 	unsigned long  offset;
 
 	base_fields    fields;
@@ -74,11 +75,11 @@ class Gzip_stream   {
 	void read_fextra();
 	void read_fname();
 	void read_fcomment();
-	std::string output_fname();
+	boost::filesystem::path output_fname();
 public:
-	Gzip_stream(const std::string fin);
+	Gzip_stream(boost::filesystem::path&  fin);
 	void decode();
-
+	bool is_correct();
 	bool is_text() { return is_txt; }
 	std::string   get_fname()   { return fname;        }
 	std::string   get_comment() { return fcomment;     }

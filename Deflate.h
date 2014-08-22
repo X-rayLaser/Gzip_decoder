@@ -13,6 +13,8 @@
 #include <map>
 #include "Bit_stream.h"
 #include "Huf_tree.h"
+#include <iostream>
+#include <boost/filesystem/fstream.hpp>
 
 class bad_fstate{
 };
@@ -32,9 +34,16 @@ class bad_chksum{
 class bad_codetbl{
 };
 
-const unsigned int MEMORY_LIMIT = 100000000 ;
-const unsigned int CMP_RATIO = 3;
-const unsigned WND_SZ = 32768;
+/* min buffer size for memory allocation while writing (in KB)
+ * the value 544 = 512 + 32 is choosen because it allows ofstream to write
+ * with an optimal amount of bytes (512 KB).
+ *
+ * NOTE: MIN_BUFFER_SIZE must be greater than 64 + 32 KB to ensure
+ * reliable work of obuffer class
+ * */
+const unsigned int MIN_BUFFER_SIZE = 544 ;
+const unsigned int CMP_RATIO = 3;		   //expected compression ratio of a file
+const unsigned WND_SZ = 32768;			   //window size in bytes
 
 struct extra_bits{
 	int bits;
@@ -42,26 +51,16 @@ struct extra_bits{
 };
 
 class obuffer {
-	std::ofstream out;
+	boost::filesystem::ofstream out;
 	std::vector<unsigned char> buf;
-	unsigned int max_size;
-	unsigned int data_size;
+	size_t max_size;
+	size_t data_size;
 
+	size_t memlimit();
 	void flush_buf();
 	void write_raw(const unsigned char* data, int size);
 public:
-	obuffer(const char* fname, int finp_size) : out()
-	{
-		max_size = finp_size * CMP_RATIO ;
-		if (max_size > MEMORY_LIMIT)
-			max_size = MEMORY_LIMIT;
-		else if (max_size < WND_SZ)
-			max_size = WND_SZ * 2 ;
-
-		data_size = 0;
-		out.open(fname, std::ios::out | std::ios::binary);
-		buf.resize(max_size) ;
-	}
+	obuffer(boost::filesystem::path fname, size_t finp_size);
 
 	void write(const std::vector<unsigned char>& data)
 	{
@@ -91,7 +90,8 @@ class Deflate_stream{
 	void fixed_huf();
 	void dynamic_huf();
 public:
-	Deflate_stream(const char* fin, const char* fout, int offset);
+	Deflate_stream(boost::filesystem::path fin, boost::filesystem::path fout,
+			int offset, size_t input_sz);
 	void decode_block();
 	bool last_blck() { return last_block; }
 	void close() { btstr.close(); out_buffer.close(); }

@@ -1,7 +1,42 @@
 #include "Deflate.h"
 #include "Huf_tree.h"
-#include <iostream>
+#define WIN32_WINNt 0x0500
+#define WINVER 0x0500
+#include <windows.h>
+
+
 const int END_OF_BLOCK = 256 ;
+
+obuffer::obuffer(boost::filesystem::path fname, size_t finp_size) : out()
+{
+	size_t lim = memlimit() / 2; //to leave a system some memory
+
+	if (lim < MIN_BUFFER_SIZE * 1024)
+		throw ; //not enough memory for decompression
+
+	if (finp_size * CMP_RATIO  > lim)
+		max_size = lim;
+	else {
+		if (finp_size * CMP_RATIO < MIN_BUFFER_SIZE * 1024)
+			max_size = MIN_BUFFER_SIZE * 1024;
+		else
+			max_size = finp_size * CMP_RATIO ;
+	}
+
+	data_size = 0;
+	out.open(fname, std::ios::out | std::ios::binary);
+
+	buf.resize(max_size) ;
+}
+
+size_t obuffer::memlimit()
+{
+	MEMORYSTATUSEX status;
+	status.dwLength = sizeof(status);
+	GlobalMemoryStatusEx(&status);
+
+	return status.ullTotalPhys ;
+}
 
 void obuffer::flush_buf()
 {
@@ -92,8 +127,9 @@ void obuffer::close()
 
 
 
-Deflate_stream::Deflate_stream(const char* fin, const char* fout, int offset) :
-		btstr(fin, offset), out_buffer(fout, 320000)
+Deflate_stream::Deflate_stream(boost::filesystem::path fin,
+		boost::filesystem::path fout, int offset, size_t input_sz) :
+		btstr(fin, offset), out_buffer(fout, input_sz)
 {
 	last_block = false;
 

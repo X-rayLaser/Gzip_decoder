@@ -9,11 +9,11 @@
 #define BIT_STREAM_H_
 
 #include <iostream>
-#include <fstream>
+#include <boost/filesystem/fstream.hpp>
 #include <vector>
 
 
-const int INBUF_SZ = 100000;
+const int INBUF_SZ = 512; //in KB
 
 class buf_excpt{
 };
@@ -25,7 +25,7 @@ class bad_refill: public buf_excpt{
 };
 
 class ibuffer {
-	std::ifstream in;
+	boost::filesystem::ifstream in;
 	std::vector<unsigned char> buf;
 	std::vector<unsigned char>::const_iterator pbuf;
 	std::vector<unsigned char>::const_iterator buf_end;
@@ -33,7 +33,7 @@ class ibuffer {
 
 	void refill();
 public:
-	ibuffer(const char* fname, int offset );
+	ibuffer(boost::filesystem::path& fname, int offset );
 	unsigned char get_byte()
 	{
 		if (pbuf == buf_end)
@@ -56,7 +56,7 @@ class Bit_stream{
 	unsigned char cur_byte;
 	unsigned char bit_pos;   //current bit in a byte
 public:
-	Bit_stream(const char* fname, int offset);
+	Bit_stream(boost::filesystem::path& fname, int offset );
 	bool get_bit();
 	int read_reverse(int bit_count);
 	void skip_bits();

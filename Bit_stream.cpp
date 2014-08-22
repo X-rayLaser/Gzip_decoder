@@ -1,6 +1,6 @@
 #include "Bit_stream.h"
 
-ibuffer::ibuffer(const char* fname, int offset): in(), buf(INBUF_SZ)
+ibuffer::ibuffer(boost::filesystem::path& fname, int offset ): in(), buf(INBUF_SZ * 1024)
 {
 	in.open(fname, std::ios::in | std::ios::binary);
 	if (!in.is_open())
@@ -67,7 +67,7 @@ int ibuffer::read(std::vector<unsigned char>& dest, int count)
 }
 
 
-Bit_stream::Bit_stream(const char* fname, int offset): in_buffer(fname, offset)
+Bit_stream::Bit_stream(boost::filesystem::path& fname, int offset ): in_buffer(fname, offset)
 {
 	cur_byte = in_buffer.get_byte();
 
