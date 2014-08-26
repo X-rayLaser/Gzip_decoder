@@ -15,24 +15,48 @@
 #include "Huf_tree.h"
 #include <iostream>
 #include <boost/filesystem/fstream.hpp>
+#include <exception>
 
-class bad_fstate{
+namespace deflate
+{
+
+class defl_except : public std::exception{
 };
 
-class bad_blctype{
+class bad_fopen : public defl_except{
 };
 
-class bad_code{
+class bad_mem : public defl_except{
 };
 
-class bad_clen{
+class bad_fstate : public defl_except{
 };
 
-class bad_chksum{
+class bad_blctype : public defl_except{
 };
 
-class bad_codetbl{
+class bad_code : public defl_except{
 };
+
+class bad_clen : public defl_except{
+};
+
+class bad_repeat : public defl_except{
+};
+
+class codes_overflow : public defl_except{
+};
+
+class no_eob : public defl_except{
+};
+
+class bad_match : public defl_except{
+};
+
+class bad_stored : public defl_except{
+};
+
+
 
 /* min buffer size for memory allocation while writing (in KB)
  * the value 544 = 512 + 32 is choosen because it allows ofstream to write
@@ -44,6 +68,8 @@ class bad_codetbl{
 const unsigned int MIN_BUFFER_SIZE = 544 ;
 const unsigned int CMP_RATIO = 3;		   //expected compression ratio of a file
 const unsigned WND_SZ = 32768;			   //window size in bytes
+
+const int END_OF_BLOCK = 256 ;
 
 struct extra_bits{
 	int bits;
@@ -76,7 +102,7 @@ public:
 class Deflate_stream{
 	std::map<int, struct extra_bits> lengths ;
 	std::map<int, struct extra_bits> distances ;
-	Bit_stream btstr;
+	btstream::Bit_stream btstr;
 	obuffer out_buffer;
 	bool last_block;
 
@@ -98,5 +124,7 @@ public:
 };
 
 
+
+}
 
 #endif /* DEFLATE_H_ */

@@ -11,20 +11,22 @@
 ////add copy constructor, overload operator=
 
 #include <vector>
-
+#include <exception>
 
 namespace tree {
 
 const int NOVALUE = -8000;
 
-class empty_tree{
+class tree_except : public std::exception{
 };
 
-class bad_tree{
+class empty_tree : public tree_except{
 };
 
-class bad_code{
+class bad_tree : public tree_except{
+};
 
+class bad_code : public tree_except{
 };
 
 struct node {

@@ -13,17 +13,28 @@
 #include <iostream>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <exception>
 
 namespace gzip {
 
-class bad_format{
+class gz_except : public std::exception{
 };
 
-class bad_id{
+class bad_format : public gz_except{
 };
 
-class bad_fstate{
+class bad_id : public gz_except{
 };
+
+class bad_fopen : public gz_except{
+};
+
+const unsigned char ID1 = 31;
+const unsigned char ID2 = 139;
+const unsigned char CM  = 8;
+
+const int BUFFER_SIZE = 512 ;
+// (in KB) for reading an output file and calculating its crc32 check sum
 
 const unsigned char FTEXT 	 = 1;
 const unsigned char FHCRC 	 = 2;

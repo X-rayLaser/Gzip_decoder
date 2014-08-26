@@ -4,15 +4,15 @@
 #define WINVER 0x0500
 #include <windows.h>
 
-
-const int END_OF_BLOCK = 256 ;
+namespace deflate
+{
 
 obuffer::obuffer(boost::filesystem::path fname, size_t finp_size) : out()
 {
 	size_t lim = memlimit() / 2; //to leave a system some memory
 
 	if (lim < MIN_BUFFER_SIZE * 1024)
-		throw ; //not enough memory for decompression
+		throw bad_mem(); //not enough memory for decompression
 
 	if (finp_size * CMP_RATIO  > lim)
 		max_size = lim;
@@ -25,7 +25,8 @@ obuffer::obuffer(boost::filesystem::path fname, size_t finp_size) : out()
 
 	data_size = 0;
 	out.open(fname, std::ios::out | std::ios::binary);
-
+	if (!out.is_open())
+		throw bad_fopen();
 	buf.resize(max_size) ;
 }
 
@@ -228,7 +229,7 @@ void Deflate_stream::uncompressed()
 	unsigned short nlen = btstr.get_wordLE();
 
 	if ( len != (unsigned short ) ~nlen )
-		throw bad_chksum();
+		throw bad_match();
 
 	//copy bytes from btstr to out
 	std::vector<unsigned char> stored;
@@ -238,7 +239,7 @@ void Deflate_stream::uncompressed()
 	int count = btstr.copy(stored, len);
 
 	if (count !=len)
-		throw ;
+		throw bad_stored();
 
 	if (len > 0)
 		out_buffer.write(stored);
@@ -352,7 +353,7 @@ std::vector<tree::pair> Deflate_stream::decode_rle(const tree::Huf_tree& htr, in
 			alphabt[symbol_ith++].length = length;
 		else if (length == 16){
 			if (symbol_ith == 0)
-				throw ;
+				throw bad_repeat();
 			int repeat_counter = btstr.read_reverse(2) + 3;
 			int prevlength = alphabt[symbol_ith-1].length ;
 			for ( ; repeat_counter-- ; symbol_ith++)
@@ -372,11 +373,11 @@ std::vector<tree::pair> Deflate_stream::decode_rle(const tree::Huf_tree& htr, in
 			throw bad_clen();
 
 		if (symbol_ith > nlit + ndist)
-			throw ; //more codes then specified
+			throw codes_overflow(); //more codes then specified
 	}
 
 	if (alphabt[END_OF_BLOCK].length == 0)
-		throw bad_codetbl();
+		throw no_eob();
 
 	return alphabt ;
 }
@@ -396,3 +397,6 @@ int Deflate_stream::get_value(const tree::Huf_tree& htr)
 	return x;
 }
 
+
+
+}

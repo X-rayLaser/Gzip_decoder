@@ -4,19 +4,13 @@
 
 namespace gzip {
 
-const unsigned char ID1 = 31;
-const unsigned char ID2 = 139;
-const unsigned char CM  = 8;
-
-const int BUFFER_SIZE = 512 ; // (in KB) for reading an output file and calculating its crc32 check sum
-
 Gzip_stream::Gzip_stream(boost::filesystem::path&  fin): in()
 {
 	const std::streamoff CRC_OFFSET = 8; //offset from the end of the file
 
 	in.open(fin, std::ios::in | std::ios::binary);
 	if (!in.is_open())
-		throw bad_fstate();
+		throw bad_fopen();
 
 	archive_name = fin;
 	extra_f = NULL;
@@ -54,7 +48,7 @@ void Gzip_stream::decode()
 	boost::filesystem::path output_fn = output_fname();
 
 	size_t input_sz = boost::filesystem::file_size(archive_name);
-	Deflate_stream str(archive_name, output_fn, offset, input_sz);
+	deflate::Deflate_stream str(archive_name, output_fn, offset, input_sz);
 
 	do {
 		str.decode_block();

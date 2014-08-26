@@ -1,10 +1,13 @@
 #include "Bit_stream.h"
 
+namespace btstream
+{
+
 ibuffer::ibuffer(boost::filesystem::path& fname, int offset ): in(), buf(INBUF_SZ * 1024)
 {
 	in.open(fname, std::ios::in | std::ios::binary);
 	if (!in.is_open())
-		throw bad_init();
+		throw bad_open();
 
 	in.seekg(offset);
 
@@ -145,4 +148,8 @@ void Bit_stream::skip_bits()
 		cur_byte = in_buffer.get_byte();
 		bit_pos = 0;
 	}
+}
+
+
+
 }

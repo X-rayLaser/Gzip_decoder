@@ -11,17 +11,23 @@
 #include <iostream>
 #include <boost/filesystem/fstream.hpp>
 #include <vector>
+#include <exception>
 
+namespace btstream
+{
 
 const int INBUF_SZ = 512; //in KB
 
-class buf_excpt{
+class buf_except : public std::exception{
 };
 
-class bad_init: public buf_excpt{
+class bad_open : public buf_except{
 };
 
-class bad_refill: public buf_excpt{
+class bad_init : public buf_except{
+};
+
+class bad_refill : public buf_except{
 };
 
 class ibuffer {
@@ -83,5 +89,10 @@ public:
 	}
 	void close() { in_buffer.close(); }
 };
+
+
+
+
+}
 
 #endif /* BIT_STREAM_H_ */
