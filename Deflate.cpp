@@ -41,7 +41,7 @@ size_t obuffer::memlimit()
 
 void obuffer::flush_buf()
 {
-	int byte_count = max_size - WND_SZ;
+	size_t byte_count = max_size - WND_SZ;
 	out.write((char *) &buf[0], sizeof(char) * byte_count);
 	if (!out.good())
 		throw bad_fstate();
@@ -64,7 +64,7 @@ void obuffer::put_byte(const unsigned char& byte)
 	buf[data_size++] = byte;
 }
 
-void obuffer::write_raw(const unsigned char* data, int size)
+void obuffer::write_raw(const unsigned char* data, size_t size)
 {
 	//// when buffer reach definite size write it into ofstream
 	if ( data_size == max_size)
@@ -73,8 +73,8 @@ void obuffer::write_raw(const unsigned char* data, int size)
 	/* if data contains more bytes than the amount of available
 	 * bytes in a buffer,
 	 */
-	unsigned buf_space = max_size - data_size ;
-	if ( (unsigned) size > buf_space  ){
+	size_t buf_space = max_size - data_size ;
+	if ( size > buf_space  ){
 		std::copy(&data[0],  &data[0] + buf_space, &buf[data_size]);
 
 		flush_buf();

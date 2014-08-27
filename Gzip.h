@@ -14,6 +14,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <exception>
+#include <stdint.h>
 
 namespace gzip {
 
@@ -61,11 +62,11 @@ typedef struct {
 	unsigned char id2;
 	unsigned char cm;
 	unsigned char flg;
-	unsigned int  mtime;
+	uint32_t  	  mtime;
 	unsigned char xfl;
 	unsigned char os;
-	unsigned long crc32;
-	unsigned long isize;
+	uint32_t 	  crc32;
+	uint32_t	  isize;
 } base_fields;
 
 
@@ -80,7 +81,7 @@ class Gzip_stream   {
 	Extra_field*   extra_f;
 	std::string    fname;
 	std::string    fcomment;
-	unsigned short crc16;
+	uint16_t	   crc16;
 
 	void read_flds();
 	void read_fextra();

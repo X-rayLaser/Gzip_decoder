@@ -33,13 +33,13 @@ Gzip_stream::Gzip_stream(boost::filesystem::path&  fin): in()
 		read_fcomment();
 
 	if ( fields.flg & FHCRC )
-		in.read((char*) & crc16, sizeof(unsigned short));
+		in.read((char*) & crc16, sizeof(uint16_t));
 
 	offset = in.tellg();
 
 	in.seekg(-CRC_OFFSET, std::ios::end );
-	in.read((char *) &(fields.crc32), sizeof(unsigned long));
-	in.read((char *) &(fields.isize), sizeof(unsigned long));
+	in.read((char *) &(fields.crc32), sizeof(uint32_t));
+	in.read((char *) &(fields.isize), sizeof(uint32_t));
 	in.close();
 }
 
@@ -97,7 +97,7 @@ void Gzip_stream::read_flds()
 
 	in.read((char*) &(fields.flg), sizeof(char));
 
-	in.read((char*) &(fields.mtime), sizeof(unsigned int));
+	in.read((char*) &(fields.mtime), sizeof(uint32_t));
 
 	in.read((char*) &(fields.xfl), sizeof(char));
 
@@ -106,19 +106,20 @@ void Gzip_stream::read_flds()
 
 void Gzip_stream::read_fextra()
 {
-	unsigned short xlen ;
+	uint16_t xlen ;
 
-	in.read((char *) &xlen, sizeof(unsigned short));
+	in.read((char *) &xlen, sizeof(uint16_t));
 
 	unsigned char si1, si2;
 
 	in.read((char*) &si1, sizeof(char));
 	in.read((char*) &si2, sizeof(char));
 
-	unsigned short data_len;
-	in.read((char*) &data_len, sizeof(unsigned short));
+	uint16_t data_len;
+	in.read((char*) &data_len, sizeof(uint16_t));
 
-	if (xlen != data_len + 4)
+	uint16_t prev_4bytes = 4 ;
+	if (xlen != data_len + prev_4bytes)
 		throw bad_format();
 
 	std::vector<unsigned char> data(data_len);
@@ -171,7 +172,7 @@ bool Gzip_stream::is_correct()
 	} while ( ifs );
 
 	ifs.close();
-	return crc32.checksum() == fields.crc32 ;
+	return ((uint32_t) crc32.checksum()) == fields.crc32 ;
 
 }
 

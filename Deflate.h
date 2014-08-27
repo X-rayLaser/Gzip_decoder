@@ -84,7 +84,7 @@ class obuffer {
 
 	size_t memlimit();
 	void flush_buf();
-	void write_raw(const unsigned char* data, int size);
+	void write_raw(const unsigned char* data, size_t size);
 public:
 	obuffer(boost::filesystem::path fname, size_t finp_size);
 
