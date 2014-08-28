@@ -14,4 +14,6 @@ possible to use copy/pasting to insert a file name.
   
   Note, if you are working with file names containing cyrillic characters, it is required to set 'Lucida Console' cmd font. Otherwise cyrillic characters might not be displayed correctly while typing them.
   
-  
+SYSTEM REQUIREMENTS
+
+OS: Windows XP/ Windows Vista/ Windows 7/ Windows 8
